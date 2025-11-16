@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Local HTTP Bridge MCP Server
+  local-http-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local-http-bridge-mcp
+    image: local-http-bridge-mcp:latest
+
+    # Use host network to access localhost services
+    # Alternative: use bridge network and map specific ports
+    network_mode: host
+
+    # Mount /etc/hosts for custom DNS resolution
+    volumes:
+      - /etc/hosts:/etc/hosts:ro
+      # Optional: Mount logs directory
+      # - ./logs:/var/log/local-http-bridge
+
+    # Environment variables (use .env file or specify here)
+    env_file:
+      - .env
+    # Or specify directly:
+    # environment:
+    #   - LOG_LEVEL=INFO
+    #   - API_HVS_TOKEN=${API_HVS_TOKEN}
+    #   - APEX_DEMO_TOKEN=${APEX_DEMO_TOKEN}
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Resource limits (optional, adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # Logging configuration
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import mcp; import httpx; import pydantic"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# Alternative configuration using bridge network
+# Uncomment this section if you don't want to use host network
+# services:
+#   local-http-bridge:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: local-http-bridge-mcp
+#
+#     # Use bridge network
+#     networks:
+#       - mcp-network
+#
+#     # Add extra_hosts for custom DNS entries
+#     extra_hosts:
+#       - "apex-demo.hvs:192.168.1.100"
+#       - "api.hvs:192.168.1.101"
+#
+#     volumes:
+#       - /etc/hosts:/etc/hosts:ro
+#
+#     env_file:
+#       - .env
+#
+#     restart: unless-stopped
+
+# networks:
+#   mcp-network:
+#     driver: bridge
+
+# Usage:
+# 1. Create a .env file from .env.example:
+#    cp .env.example .env
+#
+# 2. Edit .env and add your tokens/credentials
+#
+# 3. Start the service:
+#    docker-compose up -d
+#
+# 4. View logs:
+#    docker-compose logs -f
+#
+# 5. Stop the service:
+#    docker-compose down
+#
+# 6. Rebuild after code changes:
+#    docker-compose up -d --build
